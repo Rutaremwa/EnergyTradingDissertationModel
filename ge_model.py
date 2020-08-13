@@ -61,22 +61,8 @@ is_idm_import_mode = m.addVar(vtype=GRB.BINARY, name="is_idm_import_mode")
 is_battery_charge_mode = m.addVar(vtype=GRB.BINARY, name="is_battery_charge_mode")
 is_ehp_heat_mode = m.addVar(vtype=GRB.BINARY, name="is_ehp_heat_mode")
 
-# Initialise dynamic variables in the model
-"""
-price = float(sheet2['C3'].value)
-pPVA = float(sheet2['D3'].value)
-tAmb = float(sheet2['E3'].value)
-pLoad = float(sheet2['F3'].value)
-tAmbOld = float(sheet2['E2'].value)
-pHeatOld = float(sheet2['H2'].value)
-pCoolOld = float(sheet2['G2'].value)
-pChargOld = float(sheet2['I2'].value)
-pDischOld = float(sheet2['J2'].value)
-tIntOld = float(sheet2['N2'].value)
-battLevelOld = float(sheet2['O2'].value)
-"""
 
-for i in range(2*nTrades):
+for i in range(nTrades):
     
     # Update dynamic variables in the model
     price = float(sheet2.cell(row=i+3,column=3).value)
