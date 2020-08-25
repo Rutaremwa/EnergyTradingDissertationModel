@@ -50,6 +50,7 @@ elif selector == 6:
     print("\nSP_Winter data loaded")
 else:
     print("Invalid input")
+    exit()
 
 nDays = int(input("Enter number of days to optimize: "))
 #Initialise model constants
@@ -130,23 +131,27 @@ for i in range (nDays):
         m.addConstr(pHeat <= pHeatMax*is_ehp_heat_mode, "c6")
         m.addConstr(pCool <= pCoolMax*(1-is_ehp_heat_mode), "c7")
         m.addConstr(pCharg <= pChargMax*is_battery_charge_mode, "c8")
-        m.addConstr(pDisch <= pDischMax*(1-is_battery_charge_mode), "c9")     
-        # Include simple heuristics
+        m.addConstr(pDisch <= (battLevelOld/battCapacity)*pDischMax*(1-is_battery_charge_mode), "c9") 
+
+        # Required charging power
         
-        if(pPVA>0.5*pPVMax or price<priceOld):
+        if(battLevelOld < 0.3*battCapacity):
             m.addConstr(pCharg >= pChargMax*(1-battLevelOld/battCapacity), "h1")
+        
+        elif(battLevelOld > 0.7*battCapacity):
+            m.addConstr(pDisch >= pDischMax*(battLevelOld/battCapacity), "h2")
         
         # Required heating/cooling power
 
         if(tAmb<tIntOld):
-            m.addConstr(pHeat >= pHeatMax*(tIntMax-tIntOld)/tIntMax, "h4")
+            m.addConstr(pHeat >= pHeatMax*(tIntMax-tIntOld)/(tIntMax-tIntMin), "h4")
         else:
-            m.addConstr(pCool >= pCoolMax*(tIntOld-tIntMin)/tIntMin, "h5")
+            m.addConstr(pCool >= pCoolMax*(tIntOld-tIntMin)/(tIntMax-tIntMin), "h5")
         
         m.update() 
 
         # Set objective function
-        obj = (price*pExp) - (price*pImp)
+        obj = interval*((price*pExp) - (price*pImp))
         m.setObjective(obj, GRB.MAXIMIZE)
         m.update()   
         # Run optimization
@@ -155,20 +160,23 @@ for i in range (nDays):
         # m.update()   
     
         # Update Spreadsheet with optimal solutions for each trading period
-           
-        sheet2.cell(row=curRow,column=14).value = m.getVarByName("tInt").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=15).value = m.getVarByName("battLevel").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=16).value = m.getObjective().getValue() 
-        sheet2.cell(row=curRow,column=11).value = m.getVarByName("pImp").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=12).value = m.getVarByName("pExp").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=8).value = m.getVarByName("pHeat").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=7).value = m.getVarByName("pCool").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=13).value = m.getVarByName("pPV").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=9).value = m.getVarByName("pCharg").getAttr(GRB.Attr.X)
-        sheet2.cell(row=curRow,column=10).value = m.getVarByName("pDisch").getAttr(GRB.Attr.X)
-
+        try:
+            sheet2.cell(row=curRow,column=14).value = m.getVarByName("tInt").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=15).value = m.getVarByName("battLevel").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=16).value = m.getObjective().getValue() 
+            sheet2.cell(row=curRow,column=11).value = m.getVarByName("pImp").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=12).value = m.getVarByName("pExp").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=8).value = m.getVarByName("pHeat").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=7).value = m.getVarByName("pCool").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=13).value = m.getVarByName("pPV").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=9).value = m.getVarByName("pCharg").getAttr(GRB.Attr.X)
+            sheet2.cell(row=curRow,column=10).value = m.getVarByName("pDisch").getAttr(GRB.Attr.X)
+        except AttributeError:
+            print("Aborted optimization on trading interval no. "+str(j+1)+" on day no. "+str(i+1))
+            exit()
+        
         wb.save("ModellingData.xlsx")
-        print("\nTrading interval no. "+str(curRow-2)+" successfully optimized.\n")
+        print("\nTrading interval no. "+str(j+1)+" on day no. "+str(i+1)+" successfully optimized.\n")
         m.remove(m.getConstrs())
         # m.reset(0)
         # time.sleep(1)
